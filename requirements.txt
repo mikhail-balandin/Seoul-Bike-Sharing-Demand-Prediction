@@ -3,3 +3,4 @@ numpy
 matplotlib
 seaborn
 Pillow>=9.1
+scikit-learn
