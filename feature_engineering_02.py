@@ -48,6 +48,13 @@ def build_features(data: pd.DataFrame) -> pd.DataFrame:
         features["Rainfall(mm)"]
     )
 
+    is_weekend = features["Date"].dt.day_of_week >= 5
+
+    for hour in range(24):
+        features[f"Weekend_Hour_{hour}"] = (
+            is_weekend & (features["Hour"] == hour)
+        ).astype("int8")
+
     # Удаляем исходные и временно неиспользуемые столбцы
     features = features.drop(
         columns=[
