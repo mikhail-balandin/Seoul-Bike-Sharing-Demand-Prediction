@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from eda_01 import df
 
@@ -38,6 +39,15 @@ def build_features(data: pd.DataFrame) -> pd.DataFrame:
         features["Holiday"] == "Holiday"
     ).astype("int8")
 
+    # добавляем после 2 шага линейной регрессии
+    features["IsRainy"] = (
+        features["Rainfall(mm)"] > 0
+    ).astype("int8")
+
+    features["Rainfall_log"] = np.log1p(
+        features["Rainfall(mm)"]
+    )
+
     # Удаляем исходные и временно неиспользуемые столбцы
     features = features.drop(
         columns=[
@@ -45,6 +55,7 @@ def build_features(data: pd.DataFrame) -> pd.DataFrame:
             "Holiday",
             "Functioning Day",
             "Dew point temperature(°C)",
+            "Rainfall(mm)"
         ]
     )
 

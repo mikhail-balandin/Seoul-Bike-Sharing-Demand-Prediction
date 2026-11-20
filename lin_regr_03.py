@@ -29,7 +29,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"Train: {X_train.shape}")
 print(f"Test: {X_test.shape}")
 
-# Простой baseline: всегда прогнозируем среднее из train
+# прогнозируем среднее из train
 baseline_predictions = np.full(
     shape=len(y_test),
     fill_value=y_train.mean(),
@@ -60,4 +60,111 @@ print(
 print(
     f"Minimum prediction: "
    f"{linear_predictions.min():.2f}"
+)
+
+
+# 2 Этап. 
+
+# Таблица для анализа ошибок
+diagnostic_columns = [
+    "Date",
+    "Hour",
+    "Seasons",
+    "Temperature(°C)",
+    "Humidity(%)",
+    "Rainfall(mm)",
+    "Snowfall (cm)",
+]
+
+results = operating_df.loc[
+    X_test.index,
+    diagnostic_columns,
+].copy()
+
+# to_numpy() сохраняет порядок строк X_test/y_test
+results["actual"] = y_test.to_numpy()
+results["prediction"] = linear_predictions
+
+results["residual"] = (
+    results["actual"] - results["prediction"]
+)
+results["abs_error"] = results["residual"].abs()
+
+# Анализ отрицательных прогнозов
+negative_predictions = results.loc[
+    results["prediction"] < 0
+]
+
+negative_share = (
+    len(negative_predictions) / len(results)
+)
+
+print(f"\nNegative prediction share: {negative_share:.1%}")
+
+print("\nActual rentals for negative predictions:")
+print(negative_predictions["actual"].describe())
+
+print("\nNegative predictions by season:")
+print(negative_predictions["Seasons"].value_counts())
+
+print("\nNegative predictions by hour:")
+print(
+    negative_predictions["Hour"]
+    .value_counts()
+    .head(10)
+)
+
+print("\nMean weather values for negative predictions:")
+print(
+    negative_predictions[
+        [
+            "Temperature(°C)",
+            "Humidity(%)",
+            "Rainfall(mm)",
+            "Snowfall (cm)",
+        ]
+    ]
+    .mean()
+    .round(2)
+)
+
+# Сравнение с обрезкой прогнозов нулём
+clipped_predictions = np.clip(
+    linear_predictions,
+    a_min=0,
+    a_max=None,
+)
+
+print_metrics(
+    "Clipped linear regression",
+    y_test,
+    clipped_predictions,
+)
+
+# Наблюдения с наибольшими абсолютными ошибками
+largest_errors = results.nlargest(
+    n=10,
+    columns="abs_error",
+)
+
+print("\nLargest absolute errors:")
+print(
+    largest_errors[
+        [
+            "Date",
+            "Hour",
+            "actual",
+            "prediction",
+            "residual",
+            "abs_error",
+        ]
+    ]
+    .round(
+        {
+            "prediction": 2,
+            "residual": 2,
+            "abs_error": 2,
+        }
+    )
+    .to_string(index=False)
 )
