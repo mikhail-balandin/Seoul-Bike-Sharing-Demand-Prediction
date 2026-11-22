@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -168,3 +169,119 @@ print(
     )
     .to_string(index=False)
 )
+
+# 3 этап
+# добавим валидацию
+
+X_train, X_temp, y_train, y_temp = train_test_split(
+    X,
+    y,
+    test_size=0.4,
+    shuffle=True,
+    random_state=42,
+)
+
+X_validation, X_test, y_validation, y_test = train_test_split(
+    X_temp,
+    y_temp,
+    test_size=0.5,
+    shuffle=True,
+    random_state=42,
+)
+
+print(f"Train: {X_train.shape}")
+print(f"Validation: {X_validation.shape}")
+print(f"Test: {X_test.shape}")
+
+
+baseline_predictions = np.full(
+    shape=len(y_validation),
+    fill_value=y_train.mean(),
+)
+
+# Модель на исходной цели
+raw_model = LinearRegression()
+raw_model.fit(X_train, y_train)
+
+raw_predictions = raw_model.predict(X_validation)
+
+raw_clipped_predictions = np.clip(
+    raw_predictions,
+    a_min=0,
+    a_max=None,
+)
+
+# Модель на log1p(y)
+log_model = LinearRegression()
+log_model.fit(
+    X_train,
+    np.log1p(y_train),
+)
+
+log_predictions = np.expm1(
+    log_model.predict(X_validation)
+)
+
+# Порог пикового спроса определяем только по train
+peak_threshold = y_train.quantile(0.90)
+
+actual = y_validation.to_numpy()
+peak_mask = actual >= peak_threshold
+
+def calculate_metrics(model_name, predictions):
+    rmse = np.sqrt(
+        mean_squared_error(actual, predictions)
+    )
+
+    mae = mean_absolute_error(
+        actual,
+        predictions,
+    )
+
+    # положительный bias — средний underfitting
+    # отрицательный bias — средний overfitting
+    bias = np.mean(actual - predictions)
+
+    peak_rmse = np.sqrt(
+        mean_squared_error(
+            actual[peak_mask],
+            predictions[peak_mask],
+        )
+    )
+
+    return {
+        "Model": model_name,
+        "RMSE": rmse,
+        "MAE": mae,
+        "Bias": bias,
+        "Peak RMSE": peak_rmse,
+        "Negative": int((predictions < 0).sum()),
+        "Min prediction": predictions.min(),
+    }
+
+comparison = pd.DataFrame(
+    [
+        calculate_metrics(
+            "Baseline",
+            baseline_predictions,
+        ),
+        calculate_metrics(
+            "Raw",
+            raw_predictions,
+        ),
+        calculate_metrics(
+            "Raw + clipping",
+            raw_clipped_predictions,
+        ),
+        calculate_metrics(
+            "Log target",
+            log_predictions,
+        ),
+    ]
+).set_index("Model")
+
+print(f"\nPeak threshold: {peak_threshold:.2f}")
+print(f"Validation peak observations: {peak_mask.sum()}")
+
+print("\nValidation comparison:")
+print(comparison.round(2))
