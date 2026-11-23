@@ -1,6 +1,4 @@
 # Разбор ошибок финальной HGB-модели для презентации.
-# Используется тот же random split и те же гиперпараметры,
-# что в gradient_boosting_05.py. Пайплайн не меняется.
 
 from __future__ import annotations
 
@@ -25,6 +23,30 @@ REPORTS_DIR = BASE_DIR / "reports"
 
 RANDOM_STATE = 42
 MIN_GROUP_SIZE = 20
+
+SEASON_LABELS = {
+    "Winter": "Зима",
+    "Spring": "Весна",
+    "Summer": "Лето",
+    "Autumn": "Осень",
+}
+
+WEATHER_LABELS = {
+    "Dry": "Сухо",
+    "Rain": "Дождь",
+    "Snow": "Снег",
+    "Rain + snow": "Дождь + снег",
+}
+
+HOLIDAY_LABELS = {
+    "Regular": "Обычный",
+    "Holiday": "Праздник",
+}
+
+DAY_TYPE_LABELS = {
+    "Weekday": "Будни",
+    "Weekend": "Выходные",
+}
 
 SEGMENT_GROUPS = [
     ("Hour", "Hour"),
@@ -288,9 +310,11 @@ def make_figures(results, calibration):
         columns=["Winter", "Spring", "Summer", "Autumn"]
     )
 
+    heatmap_display = heatmap_data.rename(columns=SEASON_LABELS)
+
     fig, ax = plt.subplots(figsize=(8, 8))
     sns.heatmap(
-        heatmap_data,
+        heatmap_display,
         annot=True,
         fmt=".0f",
         cmap="YlOrRd",
@@ -299,9 +323,9 @@ def make_figures(results, calibration):
         ax=ax,
     )
     ax.set(
-        title="RMSE by hour and season",
-        xlabel="Season",
-        ylabel="Hour",
+        title="RMSE по часам и сезонам",
+        xlabel="Сезон",
+        ylabel="Час",
     )
     fig.tight_layout()
     fig.savefig(
@@ -328,12 +352,12 @@ def make_figures(results, calibration):
         [0, upper],
         linestyle="--",
         color="red",
-        label="Ideal",
+        label="Идеал",
     )
     axes[0].set(
-        title="Calibration by predicted decile",
-        xlabel="Mean prediction",
-        ylabel="Mean actual",
+        title="Калибровка по децилям прогноза",
+        xlabel="Средний прогноз",
+        ylabel="Средний факт",
     )
     axes[0].legend()
 
@@ -349,9 +373,9 @@ def make_figures(results, calibration):
     )
     axes[1].axhline(0, color="black", linewidth=0.8)
     axes[1].set(
-        title="Bias by predicted decile",
-        xlabel="Predicted decile",
-        ylabel="Mean residual: actual - prediction",
+        title="Смещение по децилям прогноза",
+        xlabel="Дециль прогноза",
+        ylabel="Средняя ошибка: факт − прогноз",
     )
 
     fig.tight_layout()
@@ -363,10 +387,10 @@ def make_figures(results, calibration):
     plt.close(fig)
 
     segments = [
-        ("Weather", "Weather"),
-        ("Holiday status", "Holiday"),
-        ("Day type", "Day type"),
-        ("Demand band", "Actual demand"),
+        ("Weather", "погоде", WEATHER_LABELS),
+        ("Holiday status", "праздникам", HOLIDAY_LABELS),
+        ("Day type", "типу дня", DAY_TYPE_LABELS),
+        ("Demand band", "фактическому спросу", {}),
     ]
     orders = {
         "Weather": ["Dry", "Rain", "Snow", "Rain + snow"],
@@ -377,19 +401,28 @@ def make_figures(results, calibration):
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    for ax, (column, title) in zip(axes.flat, segments):
+    for ax, (column, title, labels) in zip(axes.flat, segments):
         summary = summarize_errors(
             results,
             column,
         ).reset_index()
 
-        order = orders[column]
-        counts = summary.set_index(column)["Observations"]
-        reliable = summary.set_index(column)["Reliable"]
+        summary["Group label"] = (
+            summary[column].astype(str).map(labels).fillna(
+                summary[column].astype(str)
+            )
+        )
+
+        order = [
+            labels.get(group, group)
+            for group in orders[column]
+        ]
+        counts = summary.set_index("Group label")["Observations"]
+        reliable = summary.set_index("Group label")["Reliable"]
 
         sns.barplot(
             data=summary,
-            x=column,
+            x="Group label",
             y="RMSE",
             order=order,
             color="#15668b",
@@ -409,13 +442,14 @@ def make_figures(results, calibration):
                 fontsize=8,
             )
 
-        ax.set_title(f"RMSE by {title.lower()}")
+        ax.set_title(f"RMSE по {title}")
+        ax.set_xlabel("")
         ax.tick_params(axis="x", rotation=20)
 
     fig.text(
         0.5,
         0.01,
-        "Gray bars: fewer than 20 observations",
+        "Серые столбцы: меньше 20 наблюдений",
         ha="center",
         fontsize=9,
     )
