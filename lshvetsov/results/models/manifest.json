@@ -1,0 +1,78 @@
+{
+  "selection": "november_rmse_across_schemes",
+  "train_start": "2017-12-01T00:00:00+09:00",
+  "test_start": "2018-11-01T00:00:00+09:00",
+  "test_end_exclusive": "2018-12-01T00:00:00+09:00",
+  "models": [
+    {
+      "feature_set": "calendar",
+      "algorithm": "LinearRegression",
+      "alpha": null,
+      "parameters": {
+        "fit_intercept": true
+      },
+      "selection_schemes": [
+        "rolling_cv",
+        "monthly_80_20",
+        "random_80_20"
+      ],
+      "november_rmse": 334.08699170813657,
+      "november_peak_rmse": 554.9709384754028,
+      "model_file": "calendar.joblib",
+      "weather_columns": []
+    },
+    {
+      "feature_set": "calendar_weather_basic",
+      "algorithm": "HistGradientBoostingRegressor",
+      "alpha": null,
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "selection_schemes": [
+        "random_80_20"
+      ],
+      "november_rmse": 284.5372988758926,
+      "november_peak_rmse": 564.3706647197653,
+      "model_file": "calendar_weather_basic.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)"
+      ]
+    },
+    {
+      "feature_set": "calendar_weather_all",
+      "algorithm": "HistGradientBoostingRegressor",
+      "alpha": null,
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 24,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "selection_schemes": [
+        "rolling_cv"
+      ],
+      "november_rmse": 265.15762937305277,
+      "november_peak_rmse": 567.1634360858349,
+      "model_file": "calendar_weather_all.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)",
+        "Humidity(%)",
+        "Solar Radiation (MJ/m2)",
+        "Snowfall (cm)"
+      ]
+    }
+  ]
+}

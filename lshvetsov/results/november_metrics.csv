@@ -1,0 +1,5 @@
+feature_set,algorithm,configuration,parameters,selection_schemes,november_rmse,november_mae,november_r2,november_peak_rmse,test_open_hours,is_winner,train_hours
+calendar,LinearRegression,linear,"{""fit_intercept"": true}",rolling_cv|monthly_80_20|random_80_20,334.08699171,279.17948278,0.46198554,554.97093848,648,True,7817
+calendar_weather_basic,HistGradientBoostingRegressor,hgb_200_31_0.1,"{""max_iter"": 200, ""max_leaf_nodes"": 31, ""learning_rate"": 0.1, ""min_samples_leaf"": 20, ""early_stopping"": false, ""random_state"": 42}",random_80_20,284.53729888,213.89624212,0.60974073,564.37066472,648,True,7817
+calendar_weather_all,HistGradientBoostingRegressor,hgb_200_24_0.1,"{""max_iter"": 200, ""max_leaf_nodes"": 24, ""learning_rate"": 0.1, ""min_samples_leaf"": 20, ""early_stopping"": false, ""random_state"": 42}",rolling_cv,265.15762937,190.09700165,0.66109102,567.16343609,648,True,7817
+baseline,HourlyMedian,baseline,{},,279.97965714,184.02391975,0.62214274,353.08111947,648,False,7817
