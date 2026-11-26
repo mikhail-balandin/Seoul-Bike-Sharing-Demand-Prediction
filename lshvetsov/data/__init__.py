@@ -4,12 +4,14 @@ from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from ..paths import DATA_PATH
 
-DATA_PATH = Path(__file__).resolve().parents[1] / "SeoulBikeData.csv"
+
 SEOUL_TIMEZONE = "Asia/Seoul"
 TIMESTAMP = "timestamp"
 TARGET = "Rented Bike Count"
 TEST_START = pd.Timestamp("2018-11-01", tz=SEOUL_TIMEZONE)
+TEST_END = TEST_START + pd.offsets.MonthBegin()
 RANDOM_SPLIT_SEED = 42
 
 
@@ -28,6 +30,8 @@ VALIDATION_SCHEMES = {
         ValidationPeriod("2018_10", "2018-10-01", "2018-11-01"),
     ),
 }
+
+
 SELECTION_SCHEMES = {
     "rolling_cv": "Временные фолды",
     "monthly_80_20": "80/20 внутри месяца",
@@ -74,6 +78,16 @@ def split_operating_hours(
     if train.empty or validation.empty:
         raise ValueError(f"No operating hours for train or validation in {period.name}.")
     return train, validation
+
+
+def split_november(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    timestamps = data[TIMESTAMP]
+    train = data.loc[data["Functioning Day"].eq("Yes") & timestamps.lt(TEST_START)]
+    test = data.loc[timestamps.between(TEST_START, TEST_END, inclusive="left")]
+    expected_hours = int((TEST_END - TEST_START) / pd.Timedelta(hours=1))
+    if train.empty or len(test) != expected_hours:
+        raise ValueError("The training period and all November test hours are required.")
+    return train, test
 
 
 def split_monthly_80_20(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:

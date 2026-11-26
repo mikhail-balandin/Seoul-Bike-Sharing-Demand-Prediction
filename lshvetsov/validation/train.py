@@ -3,6 +3,7 @@ import json
 from itertools import product
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.base import RegressorMixin
@@ -10,22 +11,15 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 
-from .data import (
-    SELECTION_SCHEMES,
-    TARGET,
-    TEST_START,
-    TIMESTAMP,
-    VALIDATION_SCHEMES,
-    load_hourly_data,
-    split_monthly_80_20,
-    split_operating_hours,
-    split_random_80_20,
+from ..data import TARGET, load_hourly_data
+from ..data.features import FEATURE_SETS, build_features
+from ..data.protocol import (
+    MEMBERSHIP_FILE, ROLLING, VALIDATION_MODELS_FILE, make_splits, split_membership, validation_file,
 )
-from .features import FEATURE_SETS, build_features, make_model
-from .models import HourlyMedian, MedianResidualBoosting
+from ..paths import RESULTS_DIR
+from .models import HourlyMedian, MedianResidualBoosting, make_model
 
 
-RESULTS_DIR = Path(__file__).resolve().parent / "results"
 RIDGE_ALPHAS = (0.1, 1.0, 10.0, 100.0)
 LASSO_ALPHAS = (0.1, 1.0, 10.0, 100.0)
 LASSO_MAX_ITER = 20_000
@@ -95,7 +89,13 @@ def summarize_folds(
     return summary
 
 
-def evaluate_scheme(folds: dict[str, tuple[pd.DataFrame, pd.DataFrame]]) -> pd.DataFrame:
+def evaluate_scheme(
+    folds: dict[str, tuple[pd.DataFrame, pd.DataFrame]],
+    *,
+    retained: dict[str, tuple[str, RegressorMixin]] | None = None,
+) -> pd.DataFrame:
+    if retained is not None and len(folds) != 1:
+        raise ValueError("A fitted winner can only be retained for a single validation split.")
     actual = {name: check[TARGET].to_numpy() for name, (_, check) in folds.items()}
     baseline = {
         name: baseline_predict(train, check) for name, (train, check) in folds.items()
@@ -111,6 +111,7 @@ def evaluate_scheme(folds: dict[str, tuple[pd.DataFrame, pd.DataFrame]]) -> pd.D
     ]
     candidates = candidate_models()
     for feature_set, weather in FEATURE_SETS.items():
+        best_key = (float("inf"), "")
         feature_folds = {
             name: (build_features(train, weather), train[TARGET], build_features(check, weather))
             for name, (train, check) in folds.items()
@@ -121,13 +122,18 @@ def evaluate_scheme(folds: dict[str, tuple[pd.DataFrame, pd.DataFrame]]) -> pd.D
                 model = make_model(estimator, weather)
                 model.fit(train_features, target)
                 predictions[name] = model.predict(valid_features).clip(min=0)
+            metrics = summarize_folds(actual, predictions)
+            key = (float(metrics["rmse"]), configuration)
+            if retained is not None and key < best_key:
+                best_key = key
+                retained[feature_set] = (configuration, model)
             rows.append(
                 {
                     "feature_set": feature_set,
                     "algorithm": type(estimator).__name__,
                     "configuration": configuration,
                     "parameters": json.dumps(model_parameters(estimator)),
-                    **summarize_folds(actual, predictions),
+                    **metrics,
                 }
             )
     return pd.DataFrame(rows).sort_values(["rmse", "configuration"], ignore_index=True)
@@ -138,27 +144,26 @@ def write_scores(data: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate hourly rental forecasts before November.")
+    parser = argparse.ArgumentParser(description="Select models using validation hours in each split.")
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
     args = parser.parse_args()
 
-    hourly = load_hourly_data()
-    development = hourly.loc[hourly[TIMESTAMP].lt(TEST_START)]
-    schemes = {
-        name: {
-            period.name: split_operating_hours(development, period)
-            for period in periods
-        }
-        for name, periods in VALIDATION_SCHEMES.items()
-    }
-    schemes["monthly_80_20"] = {"month_tails": split_monthly_80_20(development)}
-    schemes["random_80_20"] = {"shuffled_hours": split_random_80_20(development)}
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    for scheme in SELECTION_SCHEMES:
-        results = evaluate_scheme(schemes[scheme])
-        path = args.output_dir / f"{scheme}.csv"
-        write_scores(results, path)
-        print(f"{scheme} — {len(results)} configurations — {path}", flush=True)
+    splits = make_splits(load_hourly_data())
+    winners = {}
+    results = {}
+    for scheme, split in splits.items():
+        retained = {} if scheme != ROLLING else None
+        results[scheme] = evaluate_scheme(split.folds, retained=retained)
+        if retained is not None:
+            winners[scheme] = retained
+        print(f"{scheme} — {len(results[scheme])} configurations validated", flush=True)
+
+    models_dir = args.output_dir / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    for scheme, scores in results.items():
+        write_scores(scores, args.output_dir / validation_file(scheme))
+    write_scores(split_membership(splits), args.output_dir / MEMBERSHIP_FILE)
+    joblib.dump(winners, models_dir / VALIDATION_MODELS_FILE, compress=3)
 
 
 if __name__ == "__main__":
