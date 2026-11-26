@@ -3,9 +3,10 @@ from zoneinfo import ZoneInfo
 
 import streamlit as st
 
-from lshvetsov.data import SELECTION_SCHEMES, SEOUL_TIMEZONE
-from lshvetsov.features import FEATURE_LABELS
-from lshvetsov.predict import load_models, predict_rentals
+from lshvetsov.data import SEOUL_TIMEZONE
+from lshvetsov.data.features import FEATURE_LABELS
+from lshvetsov.data.protocol import SCHEME_LABELS
+from lshvetsov.streamlit_app.predict import load_model_schemes, predict_rentals
 
 
 VISIBILITY = "Visibility (10m)"
@@ -29,7 +30,7 @@ def main() -> None:
     st.caption("Оценка числа аренд за один час. Дата и время — местные, по Сеулу.")
 
     try:
-        models = load_models()
+        models = load_model_schemes()
     except FileNotFoundError:
         st.error(REBUILD_MESSAGE)
         return
@@ -37,8 +38,13 @@ def main() -> None:
         st.error(f"Ошибка чтения манифеста моделей. {error}")
         return
 
-    feature_set = st.selectbox("Модель", list(models), format_func=FEATURE_LABELS.__getitem__)
-    model = models[feature_set]
+    scheme = st.selectbox(
+        "Схема проверки", list(models), format_func=SCHEME_LABELS.__getitem__, key="evaluation_scheme"
+    )
+    feature_set = st.selectbox(
+        "Сценарий", list(models[scheme]), format_func=FEATURE_LABELS.__getitem__, key="feature_set"
+    )
+    model = models[scheme][feature_set]
 
     now = datetime.now(ZoneInfo(SEOUL_TIMEZONE))
     date_column, hour_column = st.columns([2, 1])
@@ -102,28 +108,26 @@ def main() -> None:
         if forecast is not None and not is_open:
             st.caption("Прокат закрыт. Нулевой прогноз рассчитан по правилу закрытия.")
 
-        st.caption("Ошибка на открытых часах ноября 2018 года, аренд за час")
-        rmse = f"{model.november_rmse:.2f}".replace(".", ",")
-        if model.november_peak_rmse is None:
-            st.metric("RMSE", rmse)
-        else:
-            overall, peaks = st.columns(2)
-            overall.metric("RMSE", rmse)
-            peaks.metric(
-                "Peak RMSE",
-                f"{model.november_peak_rmse:.2f}".replace(".", ","),
-                help="RMSE на 10% открытых часов с самым высоким фактическим спросом.",
-            )
+        st.caption(f"Отложенный тест выбранной схемы · {model.test_hours} открытых часов")
+        overall, peaks = st.columns(2)
+        overall.metric("RMSE", f"{model.test_rmse:.2f}".replace(".", ","))
+        peaks.metric(
+            "Peak RMSE",
+            f"{model.test_peak_rmse:.2f}".replace(".", ","),
+            help="RMSE на 10% открытых часов с самым высоким фактическим спросом.",
+        )
+        overall.metric("MAE", f"{model.test_mae:.2f}".replace(".", ","))
+        peaks.metric("R²", f"{model.test_r2:.2f}".replace(".", ","))
 
-        alpha = "" if model.alpha is None else f" · α = {model.alpha:g}"
+        alpha = model.parameters.get("alpha")
+        alpha_label = "" if alpha is None else f" · α = {alpha:g}"
         algorithm = (
             "Медиана + поправка бустинга"
             if model.algorithm == "MedianResidualBoosting" else model.algorithm
         )
-        st.caption(f"{algorithm}{alpha} · выбор по RMSE среди кандидатов на ноябре")
-        if model.selection_schemes:
-            schemes = ", ".join(SELECTION_SCHEMES[scheme] for scheme in model.selection_schemes)
-            st.caption(f"Конфигурация выдвинута по результатам разбиений {schemes}.")
+        st.caption(f"{algorithm}{alpha_label}")
+        rmse = f"{model.validation_rmse:.2f}".replace(".", ",")
+        st.caption(f"Модель выбрана по валидационной RMSE {rmse} аренд за час.")
         if "max_leaf_nodes" in model.parameters:
             st.caption(
                 f"{model.parameters['max_iter']} итераций · "
@@ -132,7 +136,7 @@ def main() -> None:
                 f"скорость обучения {model.parameters['learning_rate']:g}"
             )
         if model.weather_columns:
-            st.caption("Ноябрьские метрики рассчитаны с фактической погодой из датасета.")
+            st.caption("Метрики рассчитаны с фактической погодой из датасета.")
 
 
 if __name__ == "__main__":

@@ -32,13 +32,6 @@ VALIDATION_SCHEMES = {
 }
 
 
-SELECTION_SCHEMES = {
-    "rolling_cv": "Временные фолды",
-    "monthly_80_20": "80/20 внутри месяца",
-    "random_80_20": "Случайное 80/20",
-}
-
-
 def load_hourly_data(path: Path = DATA_PATH) -> pd.DataFrame:
     data = pd.read_csv(path, encoding="latin1")
     hours = data["Hour"]

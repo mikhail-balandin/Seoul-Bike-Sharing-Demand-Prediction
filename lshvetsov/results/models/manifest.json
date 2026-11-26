@@ -1,55 +1,11 @@
 {
-  "selection": "november_rmse_across_schemes",
-  "train_start": "2017-12-01T00:00:00+09:00",
-  "test_start": "2018-11-01T00:00:00+09:00",
-  "test_end_exclusive": "2018-12-01T00:00:00+09:00",
+  "selection": "validation_rmse_per_scheme",
   "models": [
     {
+      "scheme": "rolling_cv",
       "feature_set": "calendar",
-      "algorithm": "LinearRegression",
-      "alpha": null,
-      "parameters": {
-        "fit_intercept": true
-      },
-      "selection_schemes": [
-        "rolling_cv",
-        "monthly_80_20",
-        "random_80_20"
-      ],
-      "november_rmse": 334.08699170813657,
-      "november_peak_rmse": 554.9709384754028,
-      "model_file": "calendar.joblib",
-      "weather_columns": []
-    },
-    {
-      "feature_set": "calendar_weather_basic",
       "algorithm": "HistGradientBoostingRegressor",
-      "alpha": null,
-      "parameters": {
-        "max_iter": 200,
-        "max_leaf_nodes": 31,
-        "learning_rate": 0.1,
-        "min_samples_leaf": 20,
-        "early_stopping": false,
-        "random_state": 42
-      },
-      "selection_schemes": [
-        "random_80_20"
-      ],
-      "november_rmse": 284.5372988758926,
-      "november_peak_rmse": 564.3706647197653,
-      "model_file": "calendar_weather_basic.joblib",
-      "weather_columns": [
-        "Temperature(°C)",
-        "Wind speed (m/s)",
-        "Visibility (10m)",
-        "Rainfall(mm)"
-      ]
-    },
-    {
-      "feature_set": "calendar_weather_all",
-      "algorithm": "HistGradientBoostingRegressor",
-      "alpha": null,
+      "configuration": "hgb_200_24_0.1",
       "parameters": {
         "max_iter": 200,
         "max_leaf_nodes": 24,
@@ -58,12 +14,247 @@
         "early_stopping": false,
         "random_state": 42
       },
-      "selection_schemes": [
-        "rolling_cv"
-      ],
-      "november_rmse": 265.15762937305277,
-      "november_peak_rmse": 567.1634360858349,
-      "model_file": "calendar_weather_all.joblib",
+      "train_hours": 7618,
+      "validation_hours": 2578,
+      "validation_rmse": 513.04999835,
+      "test_hours": 847,
+      "test_rmse": 535.6399871269936,
+      "test_mae": 416.9583488946822,
+      "test_r2": -0.23712700194328962,
+      "test_peak_rmse": 1083.251920693407,
+      "is_winner": true,
+      "model_file": "rolling_cv_calendar_73e8743b55c9.joblib",
+      "weather_columns": []
+    },
+    {
+      "scheme": "rolling_cv",
+      "feature_set": "calendar_weather_basic",
+      "algorithm": "MedianResidualBoosting",
+      "configuration": "median_hgb_180_31_0.05",
+      "parameters": {
+        "max_iter": 180,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.05,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 7618,
+      "validation_hours": 2578,
+      "validation_rmse": 341.15311796,
+      "test_hours": 847,
+      "test_rmse": 330.21261014812126,
+      "test_mae": 251.0856004663262,
+      "test_r2": 0.5298292448220792,
+      "test_peak_rmse": 570.3490572633651,
+      "is_winner": true,
+      "model_file": "rolling_cv_calendar_weather_basic_e3bd7e24f80b.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)"
+      ]
+    },
+    {
+      "scheme": "rolling_cv",
+      "feature_set": "calendar_weather_all",
+      "algorithm": "MedianResidualBoosting",
+      "configuration": "median_hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 7618,
+      "validation_hours": 2578,
+      "validation_rmse": 309.06694897,
+      "test_hours": 847,
+      "test_rmse": 317.3611194328242,
+      "test_mae": 239.53251115404666,
+      "test_r2": 0.5657140863945367,
+      "test_peak_rmse": 588.3663818765607,
+      "is_winner": true,
+      "model_file": "rolling_cv_calendar_weather_all_b1171fb8c72a.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)",
+        "Humidity(%)",
+        "Solar Radiation (MJ/m2)",
+        "Snowfall (cm)"
+      ]
+    },
+    {
+      "scheme": "monthly_80_10_10",
+      "feature_set": "calendar",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6775,
+      "validation_hours": 845,
+      "validation_rmse": 246.50649754,
+      "test_hours": 845,
+      "test_rmse": 240.88854916905166,
+      "test_mae": 141.04654645342634,
+      "test_r2": 0.8514159364459493,
+      "test_peak_rmse": 344.70051255740265,
+      "is_winner": true,
+      "model_file": "monthly_80_10_10_calendar_fc55b73634a9.joblib",
+      "weather_columns": []
+    },
+    {
+      "scheme": "monthly_80_10_10",
+      "feature_set": "calendar_weather_basic",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6775,
+      "validation_hours": 845,
+      "validation_rmse": 195.38141061,
+      "test_hours": 845,
+      "test_rmse": 156.4108494486481,
+      "test_mae": 98.99472526955017,
+      "test_r2": 0.9373568383413313,
+      "test_peak_rmse": 239.17034608916032,
+      "is_winner": true,
+      "model_file": "monthly_80_10_10_calendar_weather_basic_66da6972c43d.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)"
+      ]
+    },
+    {
+      "scheme": "monthly_80_10_10",
+      "feature_set": "calendar_weather_all",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6775,
+      "validation_hours": 845,
+      "validation_rmse": 174.00890496,
+      "test_hours": 845,
+      "test_rmse": 148.2246864598078,
+      "test_mae": 93.1097198137472,
+      "test_r2": 0.9437424259775385,
+      "test_peak_rmse": 222.06187520727184,
+      "is_winner": true,
+      "model_file": "monthly_80_10_10_calendar_weather_all_eea752874568.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)",
+        "Humidity(%)",
+        "Solar Radiation (MJ/m2)",
+        "Snowfall (cm)"
+      ]
+    },
+    {
+      "scheme": "random_80_10_10",
+      "feature_set": "calendar",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6771,
+      "validation_hours": 847,
+      "validation_rmse": 228.1999321,
+      "test_hours": 847,
+      "test_rmse": 226.45855110280195,
+      "test_mae": 136.52011118270588,
+      "test_r2": 0.8748514343479015,
+      "test_peak_rmse": 305.44682372457663,
+      "is_winner": true,
+      "model_file": "random_80_10_10_calendar_498e9829d4bf.joblib",
+      "weather_columns": []
+    },
+    {
+      "scheme": "random_80_10_10",
+      "feature_set": "calendar_weather_basic",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6771,
+      "validation_hours": 847,
+      "validation_rmse": 161.11412021,
+      "test_hours": 847,
+      "test_rmse": 169.83183398440923,
+      "test_mae": 96.65051280026151,
+      "test_r2": 0.9296139446374854,
+      "test_peak_rmse": 207.333251577872,
+      "is_winner": true,
+      "model_file": "random_80_10_10_calendar_weather_basic_481e6de1a0a5.joblib",
+      "weather_columns": [
+        "Temperature(°C)",
+        "Wind speed (m/s)",
+        "Visibility (10m)",
+        "Rainfall(mm)"
+      ]
+    },
+    {
+      "scheme": "random_80_10_10",
+      "feature_set": "calendar_weather_all",
+      "algorithm": "HistGradientBoostingRegressor",
+      "configuration": "hgb_200_31_0.1",
+      "parameters": {
+        "max_iter": 200,
+        "max_leaf_nodes": 31,
+        "learning_rate": 0.1,
+        "min_samples_leaf": 20,
+        "early_stopping": false,
+        "random_state": 42
+      },
+      "train_hours": 6771,
+      "validation_hours": 847,
+      "validation_rmse": 140.71157333,
+      "test_hours": 847,
+      "test_rmse": 160.03242977615102,
+      "test_mae": 87.93592136149633,
+      "test_r2": 0.9375022437124507,
+      "test_peak_rmse": 183.86926872749575,
+      "is_winner": true,
+      "model_file": "random_80_10_10_calendar_weather_all_ecaa843bd1e3.joblib",
       "weather_columns": [
         "Temperature(°C)",
         "Wind speed (m/s)",

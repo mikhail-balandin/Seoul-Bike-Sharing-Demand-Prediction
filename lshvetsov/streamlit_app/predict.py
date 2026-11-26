@@ -8,46 +8,55 @@ from pathlib import Path
 import joblib
 import pandas as pd
 
-from .data import SEOUL_TIMEZONE, TIMESTAMP
-from .features import FEATURE_SETS, build_features
-
-
-MODEL_DIR = Path(__file__).resolve().parent / "results" / "models"
+from ..data import SEOUL_TIMEZONE, TIMESTAMP
+from ..data.features import FEATURE_SETS, build_features
+from ..data.protocol import SCHEME_LABELS
+from ..paths import MODEL_DIR
 
 
 @dataclass(frozen=True)
 class SavedModel:
     algorithm: str
-    alpha: float | None
-    november_rmse: float
+    validation_rmse: float
+    test_rmse: float
+    test_peak_rmse: float
+    test_mae: float
+    test_r2: float
+    test_hours: int
     weather_columns: tuple[str, ...]
     path: Path
     parameters: Mapping[str, float | int | bool]
-    selection_schemes: tuple[str, ...] = ()
-    november_peak_rmse: float | None = None
 
 
-def load_models(directory: Path = MODEL_DIR) -> dict[str, SavedModel]:
+def load_model_schemes(directory: Path = MODEL_DIR) -> dict[str, dict[str, SavedModel]]:
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    entries = {entry["feature_set"]: entry for entry in manifest["models"]}
-    if entries.keys() != FEATURE_SETS.keys():
-        raise ValueError("Манифест должен содержать три набора входов из эксперимента.")
+    if manifest["selection"] != "validation_rmse_per_scheme":
+        raise ValueError("Пересоберите манифест командой finalize из README проекта.")
+    entries = {(entry["scheme"], entry["feature_set"]): entry for entry in manifest["models"]}
+    if len(entries) != len(manifest["models"]) or entries.keys() != {
+        (scheme, feature_set) for scheme in SCHEME_LABELS for feature_set in FEATURE_SETS
+    }:
+        raise ValueError("Манифест должен содержать все сценарии каждой схемы.")
 
-    models = {}
-    for feature_set, weather in FEATURE_SETS.items():
-        entry = entries[feature_set]
-        model_file = f"{feature_set}.joblib"
-        if tuple(entry["weather_columns"]) != weather or entry["model_file"] != model_file:
+    models = {scheme: {} for scheme in SCHEME_LABELS}
+    for (scheme, feature_set), entry in entries.items():
+        weather = FEATURE_SETS[feature_set]
+        model_file = entry["model_file"]
+        if tuple(entry["weather_columns"]) != weather:
             raise ValueError(f"Манифест модели {feature_set} не совпадает со схемой входов.")
-        models[feature_set] = SavedModel(
+        if Path(model_file).name != model_file or not model_file.endswith(".joblib"):
+            raise ValueError(f"Некорректный файл модели {feature_set}.")
+        models[scheme][feature_set] = SavedModel(
             algorithm=entry["algorithm"],
-            alpha=entry["alpha"],
-            november_rmse=entry["november_rmse"],
+            validation_rmse=entry["validation_rmse"],
+            test_rmse=entry["test_rmse"],
+            test_peak_rmse=entry["test_peak_rmse"],
+            test_mae=entry["test_mae"],
+            test_r2=entry["test_r2"],
+            test_hours=entry["test_hours"],
             weather_columns=weather,
             path=directory / model_file,
-            parameters=entry.get("parameters", {}),
-            selection_schemes=tuple(entry.get("selection_schemes", ())),
-            november_peak_rmse=entry.get("november_peak_rmse"),
+            parameters=entry["parameters"],
         )
     return models
 
