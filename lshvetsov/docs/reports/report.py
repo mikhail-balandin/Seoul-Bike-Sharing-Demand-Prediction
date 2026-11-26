@@ -7,15 +7,15 @@ from string import Template
 import pandas as pd
 import plotly.graph_objects as go
 
-from ..data import RANDOM_SPLIT_SEED, SEOUL_TIMEZONE, TIMESTAMP
-from ..data.features import FEATURE_LABELS, FEATURE_SETS
-from ..data.protocol import (
+from ...data import RANDOM_SPLIT_SEED, SEOUL_TIMEZONE, TIMESTAMP
+from ...data.features import FEATURE_LABELS, FEATURE_SETS
+from ...data.protocol import (
     MEMBERSHIP_FILE, MONTHLY, RANDOM, ROLLING, SCHEME_LABELS,
     TEST_METRICS_FILE, TEST_PREDICTIONS_FILE, validation_file,
 )
-from ..experiments.peak_weights import RESULT_FILE as WEIGHT_RESULT_FILE
-from ..paths import RESULTS_DIR
-from ..validation.train import (
+from ...experiments.peak_weights import RESULT_FILE as WEIGHT_RESULT_FILE
+from ...paths import RESULTS_DIR
+from ...validation.train import (
     BOOSTING_FIXED, BOOSTING_GRID, LASSO_ALPHAS, LASSO_MAX_ITER, PEAK_QUANTILE, RIDGE_ALPHAS,
 )
 
@@ -353,7 +353,8 @@ def build_report(results_dir: Path) -> Path:
         boosting_seed=BOOSTING_FIXED["random_state"],
         **validation_tables,
     )
-    path = results_dir / "report.html"
+    output_dir = TEMPLATE_PATH.parent if results_dir.resolve() == RESULTS_DIR else results_dir
+    path = output_dir / "report.html"
     path.write_text(html, encoding="utf-8")
     return path
 
