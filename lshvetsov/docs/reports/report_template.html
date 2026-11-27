@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Почасовой прогноз велопроката в Сеуле</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182835;
+      --muted: #4a5b64;
+      --accent: #0c655f;
+      --line: #dce6e6;
+      --wash: #f0f6f5;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--wash); font: 16px/1.55 system-ui, sans-serif; }
+    main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 68px; }
+    header { margin-bottom: 28px; }
+    h1 { font-size: clamp(2rem, 4.5vw, 3.05rem); line-height: 1.12; margin: 0 0 16px; }
+    h2 { font-size: 1.55rem; line-height: 1.25; margin: 0 0 12px; }
+    h3 { font-size: 1.15rem; margin: 24px 0 8px; }
+    p { max-width: 78ch; margin: 8px 0 14px; color: var(--muted); }
+    li { margin: 5px 0; }
+    nav { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 24px; }
+    .data-nav ul { margin: 4px 0 0; padding-inline-start: 18px; font-size: .88rem; }
+    .data-nav span { color: var(--muted); }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    section {
+      margin: 18px 0; padding: clamp(16px, 3vw, 30px); background: white;
+      border: 1px solid var(--line); border-radius: 14px;
+    }
+    .table-scroll { overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { padding: 9px 11px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { background: #e9f1f0; white-space: nowrap; }
+    th[scope="row"] { min-width: 150px; white-space: normal; }
+    .folds { list-style: none; margin: 0; padding: 0; }
+    .folds li { margin: 0 0 8px; }
+    .folds-final { border-top: 1px solid var(--line); padding-top: 8px; }
+    td { font-variant-numeric: tabular-nums; }
+    td:first-child { min-width: 155px; }
+    .attempts td:nth-child(3) { min-width: 195px; }
+    tr:last-child td { border-bottom: 0; }
+    .attempts tr[data-highlight] td { background: #e7f5ef; }
+    .attempts tr[hidden] { display: none; }
+    details { margin: 14px 0; }
+    summary { width: fit-content; font-weight: 650; cursor: pointer; }
+    .chart { margin: 8px 0 16px; }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 10px 0; }
+    label { display: flex; flex-direction: column; gap: 3px; font-size: .85rem; }
+    select { padding: 6px 8px; border: 1px solid #8caaa5; border-radius: 5px; background: white; color: var(--ink); font: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Почасовой прогноз велопроката в Сеуле</h1>
+      <nav aria-label="Разделы отчёта">
+        <a href="#purpose">Цель исследования</a>
+        <a href="#results">Результат</a>
+        <a href="#methodology">Методология</a>
+        <div class="data-nav">
+          <a href="#data">Данные</a>
+          <ul>
+            <li><a href="#finalists">Финалисты</a> <span>· модели и ошибки на тесте</span></li>
+            <li><a href="#growth">Зоны роста</a> <span>· ошибки на пиках</span></li>
+            <li><a href="#studies">Все исследования</a> <span>· выборки и конфигурации</span></li>
+          </ul>
+        </div>
+      </nav>
+    </header>
+
+    <section id="purpose">
+      <h2>Цель исследования</h2>
+      <p>Спрогнозировать число аренд велосипедов за конкретный час в Сеуле по сведениям,
+        доступным на момент прогноза. Такая оценка помогает заранее увидеть часы с повышенным
+        спросом и планировать доступность велосипедов в прокате.</p>
+    </section>
+
+    <section id="results">
+      <h2>Результат</h2>
+      <p>Выбрали $winner_count моделей — по одной на каждый сценарий в каждой схеме.
+        Валидационная RMSE определила победителей. Затем оценили каждого победителя
+        на отложенных часах его схемы. <a href="#finalists">Модели и метрики</a></p>
+    </section>
+
+    <section id="methodology">
+      <h2>Методология</h2>
+      <p>Для прогноза перебираем сочетания сценариев, схем разделения и конфигураций. Источник данных
+        — почасовые наблюдения в Сеуле с декабря 2017 по ноябрь 2018 года.</p>
+      <div class="table-scroll" tabindex="0" aria-label="Что сравниваем в эксперименте">
+        <table>
+          <thead><tr><th scope="col">Что меняем</th><th scope="col">Что это определяет</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><a href="#input-scenarios">Сценарий</a></th><td>Какие признаки доступны для прогноза.</td></tr>
+            <tr><th scope="row"><a href="#data-splits">Схема разделения</a></th><td>Какие часы идут в обучение, валидацию и тест.</td></tr>
+            <tr><th scope="row"><a href="#model-configurations">Конфигурация</a></th><td>Какой алгоритм и какие гиперпараметры проверяем.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Обработка данных</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Обработка данных">
+        <table>
+          <thead><tr><th scope="col">Данные</th><th scope="col">Что делаем</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Время</th><td>Объединяем дату и час по времени Сеула, сортируем строки и проверяем непрерывность часовой шкалы.</td></tr>
+            <tr><th scope="row">Спрос и статус проката</th><td>Разделяем данные, обучаем модели и считаем ошибки на открытых часах. Прогнозируем число аренд за час.</td></tr>
+            <tr><th scope="row">Календарные признаки</th><td>Кодируем час, день недели и час выходного через one-hot. Для будней у признака «час выходного» отдельное значение. Праздник кодируем двоичным признаком, годовой цикл — синусом и косинусом дня года.</td></tr>
+            <tr><th scope="row">Погодные признаки</th><td>Проверяем с фактической погодой из CSV. Дождь измеряем в миллиметрах. Точку росы исключили из-за её связи с температурой и влажностью.</td></tr>
+            <tr><th scope="row">Предобработка</th><td>По обучающей части определяем категории one-hot, средние и масштабы погодных признаков. Применяем эти преобразования в валидации и тесте.</td></tr>
+            <tr><th scope="row">Прогноз</th><td>Ограничиваем отрицательные значения нулём. При закрытии возвращаем 0. Метрики считаем до округления.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="input-scenarios">Сценарии и наборы входов</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Сценарии и наборы входов">
+        <table>
+          <thead><tr><th scope="col">Сценарий</th><th scope="col">Признаки</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Календарь</th><td>Час, день недели, час выходного, праздник и годовой цикл.</td></tr>
+            <tr><th scope="row">Календарь + основная погода</th><td>Календарь, температура, скорость ветра, видимость и дождь.</td></tr>
+            <tr><th scope="row">Календарь + вся погода</th><td>Календарь и основная погода, а также влажность, солнечная радиация и снег.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="data-splits">Схемы разделения данных</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Схемы разделения данных">
+        <table>
+          <thead><tr><th scope="col">Схема</th><th scope="col">Обучение</th><th scope="col">Валидация</th><th scope="col">Тест</th></tr></thead>
+          <tbody>
+            <tr>
+              <th scope="row">Временные фолды</th>
+              <td>$rolling_training</td>
+              <td>$rolling_validation</td>
+              <td><strong>Последние 10% открытых часов.</strong><br>$rolling_test</td>
+            </tr>
+            <tr><th scope="row">Случайное 80/10/10 внутри месяца</th><td>Случайные 80% открытых часов из каждого месяца.</td><td>Случайные 10% открытых часов из каждого месяца.</td><td>Ещё 10% открытых часов из каждого месяца.</td></tr>
+            <tr><th scope="row">Случайное 80/10/10 по году</th><td>Случайные 80% открытых часов всего года.</td><td>Случайные 10% открытых часов всего года.</td><td>Ещё 10% открытых часов всего года.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>В строке «Временные фолды» указаны первый и последний открытые часы каждого диапазона по Сеулу.
+        Во всех схемах резервируем тест заранее. Для случайных схем используем seed $random_seed.
+        В помесячной схеме округляем число часов до ближайшего целого внутри каждого месяца.</p>
+      <div class="table-scroll" tabindex="0" aria-label="Размеры выборок по схемам">
+        $split_table
+      </div>
+
+      <h3 id="model-configurations">Конфигурации моделей</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Модели и проверенные параметры">
+        <table>
+          <thead><tr><th scope="col">Модель</th><th scope="col">Что проверяем</th><th scope="col">Настройки</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Почасовая медиана</th><td>Базовый ориентир.</td><td>Медиана числа аренд по часу и типу дня. Для отсутствующей группы берём общую медиану обучения.</td></tr>
+            <tr><th scope="row">LinearRegression</th><td>Линейная зависимость спроса от входов.</td><td>Один вариант со свободным членом.</td></tr>
+            <tr><th scope="row">Ridge</th><td>Эффект штрафа за большие коэффициенты.</td><td>Свободный член и четыре значения α ($ridge_alphas).</td></tr>
+            <tr><th scope="row">Lasso</th><td>Регуляризация, которая может обнулять коэффициенты.</td><td>Свободный член, четыре значения α ($lasso_alphas) и до $lasso_max_iter итераций оптимизатора.</td></tr>
+            <tr><th scope="row">HistGradientBoostingRegressor</th><td>Нелинейные связи между признаками и спросом.</td><td>Восемь сочетаний. Итерации $boosting_iterations, максимум листьев $boosting_leaves, скорость обучения $boosting_rates. Минимум наблюдений в листе $boosting_min_leaf, seed $boosting_seed. Фиксированное число итераций.</td></tr>
+            <tr><th scope="row">Медиана + поправка бустинга</th><td>Помогает ли явная опора на почасовой профиль спроса.</td><td>Та же сетка бустинга. Модель учится предсказывать отклонение от обучающей медианы по часу и типу дня. Для прогноза складываем медиану и поправку.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Метрики</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Метрики">
+        <table>
+          <thead><tr><th scope="col">Метрика</th><th scope="col">Что измеряет</th><th scope="col">Как используем</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">RMSE</th><td>Корень из средней квадратичной ошибки, в арендах за час. Крупные промахи влияют сильнее.</td><td>Выбираем победителя по валидации, затем измеряем его ошибку на тесте.</td></tr>
+            <tr><th scope="row">MAE</th><td>Среднее абсолютное отклонение от факта, в арендах за час.</td><td>Показывает средний размер промаха.</td></tr>
+            <tr><th scope="row">R²</th><td>Качество относительно прогноза по среднему. Чем выше значение, тем лучше.</td><td>Оцениваем, какую долю разброса спроса объясняет модель.</td></tr>
+            <tr><th scope="row">Peak RMSE</th><td>RMSE на верхних 10% открытых часов по фактическому спросу.</td><td><a href="#peak-analysis">Разбираем ошибки на пиках</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="model-selection">Как обучаем и выбираем победителя</h3>
+      <div class="table-scroll" tabindex="0" aria-label="Как обучаем и выбираем победителя">
+        <table>
+          <thead><tr><th scope="col">Этап</th><th scope="col">Случайные схемы</th><th scope="col">Временные фолды</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">1. Обучаем конфигурации</th><td>Каждую конфигурацию обучаем на зафиксированных 80%.</td><td>Каждую конфигурацию обучаем с нуля перед каждым валидационным окном.</td></tr>
+            <tr><th scope="row">2. Выбираем победителя</th><td>Для каждого сценария выбираем модель с минимальной RMSE на валидационных 10%.</td><td>Для каждого сценария выбираем настройки с минимальной RMSE по объединённым валидационным прогнозам.</td></tr>
+            <tr><th scope="row">3. Готовим модель к тесту</th><td>Берём уже обученную модель-победителя.</td><td>С выбранными настройками обучаем модель на всей истории до теста внутри той же схемы.</td></tr>
+            <tr><th scope="row">4. Измеряем итоговую ошибку</th><td>Проверяем победителя на тестовых 10% этой схемы.</td><td>Проверяем победителя на заранее отложенных последних 10% открытых часов.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Оценка ретроспективная. Год наблюдений уже использовали для выбора моделей и разбора ошибок.</p>
+    </section>
+
+    <section id="data">
+      <h2>Данные</h2>
+      <h3 id="finalists">Финалисты</h3>
+      <p>В каждой паре схемы и сценария показан победитель по валидационной RMSE и его результат
+        на тесте этой схемы. Схемы проверяют разные часы и отвечают на разные вопросы.</p>
+      <div class="table-scroll" tabindex="0" aria-label="Победители и результаты на тесте">
+        $winner_table
+      </div>
+
+      <h3 id="growth">Зоны роста</h3>
+      <h4 id="peak-analysis">Насколько растёт ошибка на пиках</h4>
+      <p>На графике общая RMSE и Peak RMSE на тестовых часах выбранной схемы.
+        Для каждого теста берём один набор пиковых часов для всех победителей и почасовой медианы.</p>
+      <div class="chart">$peak_chart</div>
+
+      <h4>Где прогноз расходится с фактом</h4>
+      <p>Для каждой модели показан час суток с наибольшим вкладом в сумму квадратов ошибок на пиковых
+        часах теста. Средний факт и прогноз относятся к наблюдениям из этой группы.</p>
+      <div class="table-scroll" tabindex="0" aria-label="Часы с наибольшей ошибкой на пиках">
+        $peak_segments_table
+      </div>
+      $history
+
+      <h3 id="studies">Все исследования</h3>
+      <p>Ниже все конфигурации на валидации, почасовая медиана и состав выборок по месяцам.</p>
+      <details>
+        <summary>Число часов по месяцам и выборкам</summary>
+        <p>У временных фолдов валидационные часы входят в историю финального обучения после выбора
+          настроек. Поэтому столбцы финального обучения и валидации у этой схемы пересекаются.</p>
+        <div class="table-scroll" tabindex="0" aria-label="Состав выборок по месяцам">
+          $month_counts
+        </div>
+      </details>
+      <details id="rolling" class="attempts">
+        <summary>Временные фолды</summary>
+        <div class="table-scroll" tabindex="0" aria-label="Валидация на временных фолдах">
+          $rolling_cv_table
+        </div>
+      </details>
+      <details id="monthly" class="attempts">
+        <summary>Случайное 80/10/10 внутри месяца</summary>
+        <div class="table-scroll" tabindex="0" aria-label="Валидация при помесячном разбиении">
+          $monthly_80_10_10_table
+        </div>
+      </details>
+      <details id="random" class="attempts">
+        <summary>Случайное 80/10/10 по году</summary>
+        <div class="table-scroll" tabindex="0" aria-label="Валидация при случайном разбиении года">
+          $random_80_10_10_table
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <template id="attempt-filters">
+    <div class="filters">
+      <label>Сценарий <select data-filter="feature"><option value="">Все</option></select></label>
+      <label>Модель <select data-filter="algorithm"><option value="">Все</option></select></label>
+      <label>Порядок по RMSE
+        <select data-sort><option value="1">Сначала лучшие</option><option value="-1">Сначала худшие</option></select>
+      </label>
+    </div>
+  </template>
+  <script>
+    for (const section of document.querySelectorAll(".attempts")) {
+      const body = section.querySelector("tbody");
+      const rows = Array.from(body.rows);
+      const controls = document.getElementById("attempt-filters").content.firstElementChild.cloneNode(true);
+      const feature = controls.querySelector('[data-filter="feature"]');
+      const algorithm = controls.querySelector('[data-filter="algorithm"]');
+      const order = controls.querySelector("[data-sort]");
+      const cellText = (row, column) => row.cells[column].textContent.trim();
+      for (const [select, column] of [[feature, 0], [algorithm, 1]]) {
+        for (const label of new Set(rows.map(row => cellText(row, column)))) {
+          select.add(new Option(label, label));
+        }
+      }
+      for (const row of rows) {
+        if (cellText(row, row.cells.length - 1)) row.dataset.highlight = "";
+      }
+      section.querySelector(".table-scroll").before(controls);
+      const score = row => Number(cellText(row, 3).replace(",", "."));
+      controls.addEventListener("change", () => {
+        const sorted = [...rows].sort((a, b) => Number(order.value) * (score(a) - score(b)));
+        for (const row of sorted) {
+          row.hidden = (feature.value && feature.value !== cellText(row, 0)) ||
+            (algorithm.value && algorithm.value !== cellText(row, 1));
+        }
+        body.append(...sorted);
+      });
+    }
+    for (const link of document.querySelectorAll('a[href^="#"]')) {
+      const target = document.getElementById(link.hash.slice(1));
+      if (target?.tagName === "DETAILS") link.addEventListener("click", () => { target.open = true; });
+    }
+  </script>
+</body>
+</html>

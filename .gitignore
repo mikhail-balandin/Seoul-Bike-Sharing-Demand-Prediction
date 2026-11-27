@@ -2,5 +2,6 @@ venv
 .env
 *png
 !figures/*.png
+.idea
 
 __pycache__
